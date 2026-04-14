@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Global market rising">
+  <defs>
+    <linearGradient id="sky" x1="96" y1="0" x2="416" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5e91ee"/>
+      <stop offset="0.52" stop-color="#9cc4fb"/>
+      <stop offset="1" stop-color="#d7e8ff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="218" cy="316" r="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#eff7ff" stop-opacity="0.72"/>
+      <stop offset="0.42" stop-color="#b8d6ff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#5e91ee" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#2d5aa8" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <path
+    d="M112 342 L197 286 L284 313 L400 190"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="52"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#soft-shadow)"
+  />
+  <path
+    d="M360 186 L400 190 L404 230"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="52"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#soft-shadow)"
+  />
+  <path
+    d="M112 342 L197 286 L284 313 L400 190"
+    fill="none"
+    stroke="#eaf3ff"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+  <path
+    d="M360 186 L400 190 L404 230"
+    fill="none"
+    stroke="#eaf3ff"
+    stroke-width="20"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+</svg>

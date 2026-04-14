@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#5e91ee" />
+    <title>Global Market Cap Table</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      :root {
+        color: #171717;
+        background: #f7f8fb;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1;
+      }
+
+      p {
+        margin: 0;
+        color: #555f6d;
+        line-height: 1.5;
+      }
+
+      button {
+        border: 1px solid #171717;
+        border-radius: 8px;
+        background: #171717;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        min-width: 132px;
+        padding: 12px 16px;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+
+      .status {
+        margin: 0 0 16px;
+        min-height: 24px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid #d9dee8;
+        border-radius: 8px;
+        background: white;
+      }
+
+      table {
+        width: 100%;
+        min-width: 820px;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #e8ecf2;
+        padding: 14px 16px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #eef2f6;
+        color: #333b46;
+        font-size: 0.82rem;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .totals-row td {
+        background: #f6f8fb;
+        border-top: 2px solid #c8d0dc;
+        font-weight: 800;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .countries {
+        display: grid;
+        gap: 6px;
+        margin-top: 10px;
+      }
+
+      .country {
+        align-items: baseline;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(140px, 1fr) minmax(120px, auto) minmax(110px, auto);
+      }
+
+      .country small {
+        color: #697386;
+      }
+
+      .overlap {
+        color: #876400;
+        font-weight: 700;
+      }
+
+      .missing {
+        color: #a40019;
+        font-weight: 700;
+      }
+
+      .number {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .ticker-input {
+        background: #fffbe8;
+        border: 2px solid #876400;
+        border-radius: 8px;
+        color: #171717;
+        font: inherit;
+        font-weight: 700;
+        max-width: 120px;
+        padding: 8px 10px;
+        text-transform: uppercase;
+        width: 100%;
+      }
+
+      .ticker-input:focus {
+        border-color: #171717;
+        outline: 2px solid #f0ca35;
+        outline-offset: 2px;
+      }
+
+      .ticker-cell {
+        display: grid;
+        gap: 4px;
+      }
+
+      .ticker-note,
+      .column-note {
+        color: #697386;
+        display: block;
+        font-size: 0.76rem;
+        font-weight: 600;
+        line-height: 1.3;
+        text-transform: none;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .metric {
+        border: 1px solid #d9dee8;
+        border-radius: 8px;
+        background: white;
+        padding: 14px 16px;
+      }
+
+      .label {
+        color: #697386;
+        display: block;
+        font-size: 0.82rem;
+        margin-bottom: 6px;
+      }
+
+      .value {
+        color: #171717;
+        font-weight: 750;
+      }
+
+      .error {
+        color: #a40019;
+        font-weight: 700;
+      }
+
+      @media (max-width: 760px) {
+        main {
+          width: min(100% - 24px, 1120px);
+          padding: 20px 0;
+        }
+
+        header,
+        .meta {
+          display: block;
+        }
+
+        button {
+          margin-top: 16px;
+          width: 100%;
+        }
+
+        .metric {
+          margin-top: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Global Market Caps</h1>
+          <p>ETF-shaped public-equity regions, refreshed from current source pages.</p>
+        </div>
+        <button id="refresh" type="button">Refresh</button>
+      </header>
+
+      <p id="status" class="status">Loading latest data...</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Geography</th>
+              <th>ETF<span class="column-note">Type a ticker</span></th>
+              <th class="number">Market cap</th>
+              <th class="number">Share of global</th>
+              <th>Missing countries</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <section class="meta" aria-label="Data notes">
+        <div class="metric">
+          <span class="label">Global denominator</span>
+          <span id="denominator" class="value">-</span>
+        </div>
+        <div class="metric">
+          <span class="label">Market-cap source</span>
+          <span id="source" class="value">-</span>
+        </div>
+        <div class="metric">
+          <span class="label">Data quality</span>
+          <span id="quality" class="value">-</span>
+        </div>
+        <div class="metric">
+          <span class="label">Freshness</span>
+          <span id="freshness" class="value">-</span>
+        </div>
+        <div class="metric">
+          <span class="label">Reconciliation</span>
+          <span id="reconciliation" class="value">-</span>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const rows = document.querySelector("#rows");
+      const status = document.querySelector("#status");
+      const refresh = document.querySelector("#refresh");
+      const denominator = document.querySelector("#denominator");
+      const source = document.querySelector("#source");
+      const quality = document.querySelector("#quality");
+      const freshness = document.querySelector("#freshness");
+      const reconciliation = document.querySelector("#reconciliation");
+      const tickerStorageKey = "global-market-caps.tickerOverrides";
+
+      const usdTrillions = new Intl.NumberFormat("en-US", {
+        currency: "USD",
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        style: "currency"
+      });
+
+      const percent = new Intl.NumberFormat("en-US", {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+        style: "percent"
+      });
+
+      function loadTickerOverrides() {
+        try {
+          return JSON.parse(localStorage.getItem(tickerStorageKey)) || {};
+        } catch {
+          return {};
+        }
+      }
+
+      function saveTickerOverrides(overrides) {
+        localStorage.setItem(tickerStorageKey, JSON.stringify(overrides));
+      }
+
+      function escapeAttribute(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function render(data) {
+        rows.innerHTML = "";
+        const tickerOverrides = loadTickerOverrides();
+        const totals = data.groups.reduce(
+          (summary, group) => ({
+            marketCapUsdMillions: summary.marketCapUsdMillions + group.market_cap_usd_millions,
+            shareOfGlobalPct: summary.shareOfGlobalPct + group.share_of_global_pct
+          }),
+          { marketCapUsdMillions: 0, shareOfGlobalPct: 0 }
+        );
+
+        for (const group of data.groups) {
+          const tr = document.createElement("tr");
+          const ticker = tickerOverrides[group.label] || group.ticker;
+          const countries = group.country_details
+            .map((country) => {
+              const cap = country.market_cap_usd_millions
+                ? `${usdTrillions.format(country.market_cap_usd_millions / 1_000_000)}T`
+                : "Missing";
+              const classes = [country.included ? "" : "missing", country.appears_in_multiple_groups ? "overlap" : ""]
+                .filter(Boolean)
+                .join(" ");
+              const source = country.source || "No source row";
+              return `<span class="country ${classes}"><span>${country.country}</span><span>${cap}</span><small>${source}${country.appears_in_multiple_groups ? " · overlap" : ""}</small></span>`;
+            })
+            .join("");
+          tr.innerHTML = `
+            <td><details><summary>${group.label}</summary><div class="countries">${countries}</div></details></td>
+            <td class="ticker-cell"><input class="ticker-input" type="text" value="${escapeAttribute(ticker)}" placeholder="${escapeAttribute(group.ticker)}" data-label="${escapeAttribute(group.label)}" aria-label="${escapeAttribute(`${group.label} ETF ticker`)}" /><span class="ticker-note">Custom ticker</span></td>
+            <td class="number">${usdTrillions.format(group.market_cap_usd_millions / 1_000_000)}T</td>
+            <td class="number">${percent.format(group.share_of_global_pct / 100)}</td>
+            <td>${group.missing_countries.length ? group.missing_countries.join(", ") : "-"}</td>
+          `;
+          rows.append(tr);
+        }
+
+        const totalsRow = document.createElement("tr");
+        totalsRow.className = "totals-row";
+        totalsRow.innerHTML = `
+          <td>Totals</td>
+          <td>-</td>
+          <td class="number">${usdTrillions.format(totals.marketCapUsdMillions / 1_000_000)}T</td>
+          <td class="number">${percent.format(totals.shareOfGlobalPct / 100)}</td>
+          <td>-</td>
+        `;
+        rows.append(totalsRow);
+
+        denominator.textContent = `${usdTrillions.format(
+          data.methodology.denominator_usd_millions / 1_000_000
+        )}T`;
+        source.textContent = data.methodology.market_cap_source;
+        quality.textContent = data.methodology.data_quality;
+        freshness.textContent = data.methodology.freshness;
+        reconciliation.textContent = data.methodology.reconciliation.note;
+        status.textContent = `Updated ${new Date(data.updated_at).toLocaleString()}`;
+      }
+
+      async function load() {
+        refresh.disabled = true;
+        status.textContent = "Loading latest data...";
+        status.classList.remove("error");
+
+        try {
+          const response = await fetch("/api", { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Unable to load market-cap data.");
+          }
+          render(data);
+        } catch (error) {
+          status.textContent = error.message;
+          status.classList.add("error");
+        } finally {
+          refresh.disabled = false;
+        }
+      }
+
+      rows.addEventListener("input", (event) => {
+        const target = event.target;
+        if (!target.classList.contains("ticker-input")) {
+          return;
+        }
+
+        const tickerOverrides = loadTickerOverrides();
+        const value = target.value.trim();
+        if (value) {
+          tickerOverrides[target.dataset.label] = value;
+        } else {
+          delete tickerOverrides[target.dataset.label];
+        }
+        saveTickerOverrides(tickerOverrides);
+      });
+
+      refresh.addEventListener("click", load);
+      load();
+    </script>
+  </body>
+</html>
