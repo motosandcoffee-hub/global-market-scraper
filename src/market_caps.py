@@ -32,6 +32,13 @@ SP_FACTSHEET_HOST_IDENTIFIER = "48190c8c-42c4-46af-8d1a-0cd5db894797"
 SP_ALLOW_STALE_SNAPSHOT_ENV = "SP_ALLOW_STALE_SNAPSHOT"
 MAX_INDEX_SOURCE_AGE_DAYS = 60
 MSCI_ACWI_IMI_PAGE_URL = "https://www.msci.com/visualizing-investment-data/acwi-imi-complete-geographic-breakdown"
+VT_PROFILE_URL = "https://investor.vanguard.com/investment-products/etfs/profile/vt"
+VT_DIVERSIFICATION_URL = "https://investor.vanguard.com/vmf/api/VT/diversification?isInternal=false"
+SPGM_PROFILE_URL = (
+    "https://www.ssga.com/us/en/intermediary/etfs/"
+    "state-street-spdr-portfolio-msci-global-stock-market-etf-spgm"
+)
+NORMALIZED_GLOBAL_MARKET_CAP_USD_MILLIONS = 100_000_000
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,6 +89,16 @@ class GroupResult:
 
 
 ETF_SOURCE_CHECKS = (
+    SourceCheck(
+        name="VT",
+        url=VT_PROFILE_URL,
+        expected_terms=("Vanguard Total World Stock ETF", "Total World Stock ETF"),
+    ),
+    SourceCheck(
+        name="SPGM",
+        url=SPGM_PROFILE_URL,
+        expected_terms=("SPDR", "MSCI Global Stock Market ETF"),
+    ),
     SourceCheck(
         name="XUU.TO",
         url="https://www.blackrock.com/ca/investors/en/products/272104/ishares-core-sp-us-total-market-index-etf",
@@ -398,6 +415,8 @@ def strip_markup(document: str) -> str:
 
 def parse_source_date(value: str) -> dt.date:
     cleaned = normalize_space(value).replace(",", "")
+    if "T" in cleaned:
+        cleaned = cleaned.split("T", 1)[0]
     for fmt in ("%B %d %Y", "%b %d %Y", "%Y-%m-%d", "%B %Y"):
         try:
             parsed = dt.datetime.strptime(cleaned, fmt).date()
@@ -665,6 +684,132 @@ def parse_msc_acwi_imi_country_caps(text: str) -> dict[str, CountryCap]:
     if not rows:
         raise RuntimeError("Could not parse MSCI ACWI IMI country rows.")
     return rows
+
+
+def country_weight_cap(country: str, weight: float, source: str) -> CountryCap:
+    return CountryCap(
+        country=country,
+        constituents=None,
+        market_cap_usd_millions=NORMALIZED_GLOBAL_MARKET_CAP_USD_MILLIONS * (weight / 100),
+        index_weight_pct=weight,
+        source=source,
+    )
+
+
+def parse_vt_country_weights(data: dict[str, Any]) -> tuple[dict[str, CountryCap], str]:
+    country = data.get("country")
+    if not isinstance(country, dict):
+        raise RuntimeError("Could not parse VT country weights: missing country block.")
+    as_of = country.get("currentAsOfDate")
+    if not isinstance(as_of, str) or not as_of:
+        raise RuntimeError("Could not parse VT country weights: missing as-of date.")
+    items = country.get("item")
+    if not isinstance(items, list):
+        raise RuntimeError("Could not parse VT country weights: missing country rows.")
+
+    rows: dict[str, CountryCap] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        raw_name = item.get("name")
+        raw_weight = item.get("currYrPct")
+        if not isinstance(raw_name, str) or not isinstance(raw_weight, str):
+            continue
+        country_name = canonical_country(raw_name)
+        if country_name == "Other":
+            continue
+        weight = parse_number(raw_weight)
+        rows[country_name] = country_weight_cap(country_name, weight, "VT country weights")
+
+    if not rows:
+        raise RuntimeError("Could not parse VT country weights.")
+    return rows, as_of
+
+
+def parse_spgm_country_weights(document: str) -> tuple[dict[str, CountryCap], str]:
+    match = re.search(
+        r'<input[^>]+id=["\']fund-geographical-breakdown["\'][^>]+value=(?P<quote>["\'])(?P<value>.*?)\1',
+        document,
+        re.DOTALL,
+    )
+    if not match:
+        raise RuntimeError("Could not find SPGM geographical-breakdown data.")
+    try:
+        data = json.loads(html.unescape(match.group("value")))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Could not parse SPGM geographical-breakdown JSON.") from exc
+    as_of = data.get("asOfDateSimple") or str(data.get("asOfDate", "")).removeprefix("as of ")
+    if not isinstance(as_of, str) or not as_of:
+        raise RuntimeError("Could not parse SPGM geographical-breakdown as-of date.")
+    attr_array = data.get("attrArray")
+    if not isinstance(attr_array, list):
+        raise RuntimeError("Could not parse SPGM geographical-breakdown country rows.")
+
+    rows: dict[str, CountryCap] = {}
+    for item in attr_array:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name", {})
+        weight = item.get("weight", {})
+        if not isinstance(name, dict) or not isinstance(weight, dict):
+            continue
+        raw_name = name.get("value")
+        raw_weight = weight.get("originalValue") or weight.get("value")
+        if not isinstance(raw_name, str) or not isinstance(raw_weight, str):
+            continue
+        country_name = canonical_country(raw_name)
+        weight_value = parse_number(raw_weight)
+        rows[country_name] = country_weight_cap(country_name, weight_value, "SPGM country weights")
+
+    if not rows:
+        raise RuntimeError("Could not parse SPGM geographical-breakdown country rows.")
+    return rows, as_of
+
+
+def build_etf_weight_dataset(
+    country_caps: dict[str, CountryCap],
+    source_label: str,
+    freshness_label: str,
+    source_url: str,
+) -> MarketCapDataset:
+    return MarketCapDataset(
+        country_caps=country_caps,
+        denominator_usd_millions=NORMALIZED_GLOBAL_MARKET_CAP_USD_MILLIONS,
+        source_label=source_label,
+        freshness_label=(
+            f"{freshness_label}; shares use ETF country weights normalized to a USD "
+            f"{usd_millions_to_trillions(NORMALIZED_GLOBAL_MARKET_CAP_USD_MILLIONS):,.0f} tn display denominator."
+        ),
+        source_url=source_url,
+        share_basis="index_weight",
+    )
+
+
+def fetch_vt_dataset() -> MarketCapDataset:
+    try:
+        data = json.loads(fetch_text(VT_DIVERSIFICATION_URL))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Could not parse VT diversification JSON.") from exc
+    country_caps, as_of = parse_vt_country_weights(data)
+    require_fresh_source(as_of, "VT country weights")
+    return build_etf_weight_dataset(
+        country_caps,
+        "VT country weights",
+        f"VT diversification country weights as of {format_source_date(as_of)}",
+        VT_PROFILE_URL,
+    )
+
+
+def fetch_spgm_dataset() -> MarketCapDataset:
+    document = fetch_text(SPGM_PROFILE_URL)
+    country_caps, as_of = parse_spgm_country_weights(document)
+    require_fresh_source(as_of, "SPGM country weights")
+    return build_etf_weight_dataset(
+        country_caps,
+        "SPGM country weights",
+        f"SPGM geographical country weights as of {format_source_date(as_of)}",
+        SPGM_PROFILE_URL,
+    )
 
 
 def fetch_factsheet_text(source: IndexSource) -> str:
@@ -955,7 +1100,24 @@ def require_dataset_reconciliation(dataset: MarketCapDataset) -> None:
         )
 
 
+def format_source_date(value: str) -> str:
+    parsed = parse_source_date(value)
+    return f"{parsed.strftime('%B')} {parsed.day}, {parsed.year}"
+
+
 def fetch_market_cap_dataset() -> MarketCapDataset:
+    try:
+        dataset = fetch_vt_dataset()
+        require_dataset_reconciliation(dataset)
+        return dataset
+    except RuntimeError as exc:
+        print(f"warning: VT source unavailable; trying SPGM. {exc}", file=sys.stderr)
+    try:
+        dataset = fetch_spgm_dataset()
+        require_dataset_reconciliation(dataset)
+        return dataset
+    except RuntimeError as exc:
+        print(f"warning: SPGM source unavailable; trying S&P Global BMI. {exc}", file=sys.stderr)
     try:
         dataset = fetch_sp_global_bmi_dataset()
         require_dataset_reconciliation(dataset)
@@ -1148,6 +1310,10 @@ def render_table(results: list[GroupResult], global_market_cap: float, source_la
 
 def confidence_line(results: list[GroupResult], source_label: str) -> str:
     missing = sorted({country for result in results for country in result.missing_countries})
+    if source_label.startswith("VT") or source_label.startswith("SPGM"):
+        if missing:
+            return f"Data quality: ETF-published country target weights with missing countries: {', '.join(missing)}."
+        return "Data quality: ETF-published country target weights; no missing countries."
     if source_label.startswith("S&P Global BMI"):
         if missing:
             return f"Data quality: index-grade country index weights with missing countries: {', '.join(missing)}."

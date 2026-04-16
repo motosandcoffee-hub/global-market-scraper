@@ -14,6 +14,7 @@ from src.market_caps import (
     parse_cmc_all_countries,
     parse_cmc_global_market_cap,
     parse_source_date,
+    parse_spgm_country_weights,
     parse_sp_factsheet_url,
     parse_sp_factsheet_as_of,
     require_dataset_reconciliation,
@@ -24,6 +25,7 @@ from src.market_caps import (
     parse_sp_country_caps,
     parse_sp_factsheet_country_caps,
     fetch_sp_global_bmi_dataset,
+    parse_vt_country_weights,
     parse_wfe_period,
     parse_wfe_market_caps,
 )
@@ -231,6 +233,37 @@ class MarketCapsTest(unittest.TestCase):
         self.assertEqual(parse_msc_acwi_imi_market_cap(text), 100_882_259.42)
         self.assertAlmostEqual(caps["United States"].index_weight_pct, 61.98)
         self.assertAlmostEqual(caps["Canada"].market_cap_usd_millions, 3_278_673.43115)
+
+    def test_parse_vt_country_weights(self):
+        data = {
+            "country": {
+                "currentAsOfDate": "2026-02-28T00:00:00-05:00",
+                "item": [
+                    {"name": "United States            ", "currYrPct": "60.1"},
+                    {"name": "Korea                    ", "currYrPct": "2.2"},
+                    {"name": "Other                    ", "currYrPct": "0.2"},
+                ],
+            }
+        }
+
+        caps, as_of = parse_vt_country_weights(data)
+
+        self.assertEqual(as_of, "2026-02-28T00:00:00-05:00")
+        self.assertAlmostEqual(caps["United States"].index_weight_pct, 60.1)
+        self.assertAlmostEqual(caps["United States"].market_cap_usd_millions, 60_100_000)
+        self.assertAlmostEqual(caps["South Korea"].index_weight_pct, 2.2)
+        self.assertNotIn("Other", caps)
+
+    def test_parse_spgm_country_weights(self):
+        html = """
+        <input type="hidden" id="fund-geographical-breakdown" value="{&#34;asOfDateSimple&#34;:&#34;Apr 15 2026&#34;,&#34;attrArray&#34;:[{&#34;name&#34;:{&#34;value&#34;:&#34;United States&#34;},&#34;weight&#34;:{&#34;originalValue&#34;:&#34;61.54&#34;}},{&#34;name&#34;:{&#34;value&#34;:&#34;South Korea&#34;},&#34;weight&#34;:{&#34;value&#34;:&#34;2.12%&#34;}}]}"/>
+        """
+
+        caps, as_of = parse_spgm_country_weights(html)
+
+        self.assertEqual(as_of, "Apr 15 2026")
+        self.assertAlmostEqual(caps["United States"].index_weight_pct, 61.54)
+        self.assertAlmostEqual(caps["South Korea"].index_weight_pct, 2.12)
 
     def test_msci_top_country_weights_fail_full_dataset_reconciliation(self):
         text = """

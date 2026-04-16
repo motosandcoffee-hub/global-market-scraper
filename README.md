@@ -7,7 +7,7 @@ Builds a live table for four ETF-shaped equity-market regions:
 - Developed ex North America, matching `VIU.TO`
 - Emerging markets, matching `XEC.TO`
 
-Each run checks current official ETF/provider pages, fetches the latest S&P DJI country rows it can parse, and prints each group as a share of the global equity universe.
+Each run checks current official ETF/provider pages, fetches the latest popular global ETF country weights it can parse, and prints each group as a share of the global equity universe.
 
 ## Usage
 
@@ -30,9 +30,9 @@ This repo is ready to deploy to Vercel as a static web app with a Python serverl
 
 ## Methodology
 
-The preferred source is the live S&P Global BMI index page, which exposes the same current country breakdown as the factsheet. The app uses country `Index Weight [%]` for the percentage column because those weights are float-adjusted and match the index result shown in the factsheet. The market-cap column still shows the country `Total Market Cap [USD Million]` values from the same S&P source.
+The preferred source is Vanguard Total World Stock ETF (`VT`) country weights. VT is used as a practical proxy for each country's share of the global investable equity market because the fund tracks a broad global market-cap-weighted equity portfolio. The app uses the ETF-published country weight for the percentage column and normalizes those weights to a USD 100 tn display denominator for the market-cap column.
 
-If the live index page is unavailable, the app tries the official S&P Global BMI factsheet PDF. Index-grade sources must pass a freshness check before they are used. If S&P blocks both live S&P Global BMI paths, the app tries the public MSCI ACWI IMI factsheet, but only accepts it if it exposes enough country-level coverage to calculate the ETF-shaped groups honestly. After that, it fails over to the older live S&P Developed BMI + S&P Emerging BMI sources, then a CompaniesMarketCap/WFE fallback. The checked-in S&P Global BMI snapshot is not used by default because it can become stale quickly.
+If VT is unavailable, the app tries the SPDR Portfolio MSCI Global Stock Market ETF (`SPGM`) geographical breakdown. If both ETF sources are unavailable, it falls back to the older index/provider chain: live S&P Global BMI index page, official S&P Global BMI factsheet PDF, public MSCI ACWI IMI factsheet, legacy S&P Developed BMI + S&P Emerging BMI sources, then a CompaniesMarketCap/WFE fallback. Index-grade and ETF sources must pass a freshness check before they are used. The checked-in S&P Global BMI snapshot is not used by default because it can become stale quickly.
 
 The S&P factsheet source can be overridden without code changes:
 
