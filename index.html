@@ -93,6 +93,7 @@
         padding: 14px 16px;
         text-align: left;
         vertical-align: top;
+        overflow-wrap: anywhere;
       }
 
       th {
@@ -129,6 +130,7 @@
         display: grid;
         gap: 8px;
         grid-template-columns: minmax(140px, 1fr) minmax(120px, auto) minmax(110px, auto);
+        min-width: 0;
       }
 
       .country small {
@@ -234,6 +236,76 @@
 
         .metric {
           margin-top: 12px;
+        }
+
+        .table-wrap {
+          overflow-x: visible;
+        }
+
+        table,
+        tbody,
+        tr,
+        td {
+          display: block;
+          width: 100%;
+        }
+
+        table {
+          min-width: 0;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tr {
+          border-bottom: 1px solid #d9dee8;
+          padding: 6px 0;
+        }
+
+        tr:last-child {
+          border-bottom: 0;
+        }
+
+        td {
+          align-items: start;
+          border-bottom: 0;
+          display: grid;
+          gap: 8px;
+          grid-template-columns: minmax(96px, 35%) minmax(0, 1fr);
+          min-width: 0;
+          padding: 10px 12px;
+        }
+
+        td::before {
+          color: #697386;
+          content: attr(data-label);
+          font-size: 0.78rem;
+          font-weight: 800;
+          letter-spacing: 0;
+          text-transform: uppercase;
+        }
+
+        .number {
+          text-align: left;
+          white-space: normal;
+        }
+
+        .ticker-input {
+          max-width: none;
+        }
+
+        .countries {
+          gap: 10px;
+        }
+
+        .country {
+          gap: 2px;
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .totals-row td {
+          border-top: 0;
         }
       }
     </style>
@@ -360,11 +432,11 @@
             })
             .join("");
           tr.innerHTML = `
-            <td><details><summary>${group.label}</summary><div class="countries">${countries}</div></details></td>
-            <td class="ticker-cell"><input class="ticker-input" type="text" value="${escapeAttribute(ticker)}" placeholder="${escapeAttribute(group.ticker)}" data-label="${escapeAttribute(group.label)}" aria-label="${escapeAttribute(`${group.label} ETF ticker`)}" /><span class="ticker-note">Custom ticker</span></td>
-            <td class="number">${usdTrillions.format(group.market_cap_usd_millions / 1_000_000)}T</td>
-            <td class="number">${percent.format(group.share_of_global_pct / 100)}</td>
-            <td>${group.missing_countries.length ? group.missing_countries.join(", ") : "-"}</td>
+            <td data-label="Geography"><details><summary>${group.label}</summary><div class="countries">${countries}</div></details></td>
+            <td class="ticker-cell" data-label="ETF"><input class="ticker-input" type="text" value="${escapeAttribute(ticker)}" placeholder="${escapeAttribute(group.ticker)}" data-label="${escapeAttribute(group.label)}" aria-label="${escapeAttribute(`${group.label} ETF ticker`)}" /><span class="ticker-note">Custom ticker</span></td>
+            <td class="number" data-label="Market cap">${usdTrillions.format(group.market_cap_usd_millions / 1_000_000)}T</td>
+            <td class="number" data-label="Share of global">${percent.format(group.share_of_global_pct / 100)}</td>
+            <td data-label="Missing countries">${group.missing_countries.length ? group.missing_countries.join(", ") : "-"}</td>
           `;
           rows.append(tr);
         }
@@ -372,11 +444,11 @@
         const totalsRow = document.createElement("tr");
         totalsRow.className = "totals-row";
         totalsRow.innerHTML = `
-          <td>Totals</td>
-          <td>-</td>
-          <td class="number">${usdTrillions.format(totals.marketCapUsdMillions / 1_000_000)}T</td>
-          <td class="number">${percent.format(totals.shareOfGlobalPct / 100)}</td>
-          <td>-</td>
+          <td data-label="Geography">Totals</td>
+          <td data-label="ETF">-</td>
+          <td class="number" data-label="Market cap">${usdTrillions.format(totals.marketCapUsdMillions / 1_000_000)}T</td>
+          <td class="number" data-label="Share of global">${percent.format(totals.shareOfGlobalPct / 100)}</td>
+          <td data-label="Missing countries">-</td>
         `;
         rows.append(totalsRow);
 
