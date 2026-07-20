@@ -49,10 +49,6 @@ class handler(BaseHTTPRequestHandler):
     def respond_with_payload(self, head_only: bool = False):
         try:
             checks = [check_source(source) for source in (*ETF_SOURCE_CHECKS, *PROVIDER_SOURCE_CHECKS)]
-            failed_checks = [check for check in checks if not check["ok"]]
-            if failed_checks:
-                raise RuntimeError("One or more ETF or provider source checks failed.")
-
             dataset = fetch_market_cap_dataset()
             results = compile_groups(dataset.country_caps, dataset.denominator_usd_millions, dataset.share_basis)
             payload = build_payload(checks, results, dataset)
